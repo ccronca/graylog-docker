@@ -1,0 +1,22 @@
+global
+    maxconn {{or (key "service/haproxy/maxconn") 256}}
+
+defaults
+    mode http
+    timeout connect {{or (key "service/haproxy/timeouts/connect") "5000ms"}}
+    timeout client {{or (key "service/haproxy/timeouts/client") "50000ms"}}
+    timeout server {{or (key "service/haproxy/timeouts/server") "50000ms"}}
+
+listen http-in
+    bind *:9000{{range service "elasticsearch-9200"}}
+    server {{.Node}} {{.Address}}:{{.Port}}{{end}}
+
+listen restapi 0.0.0.0:12900
+    mode http{{range service "elasticsearch-9300"}}
+    server {{.Node}} {{.Address}}:{{.Port}}{{end}}
+
+listen stats *:1936
+    stats enable
+    stats uri /
+    stats hide-version
+
