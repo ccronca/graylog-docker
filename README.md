@@ -10,13 +10,13 @@ eval "$(docker-machine env dev)"
 ### Start Consul
 
 ```bash
+
 docker run -d \
-    --name=consul \
-    --net=host \
+    --name consul --hostname consul \
+    -p 53:53/udp -p 8301:8301/udp -p 8500:8500  \
     consul \
     agent -server -bootstrap-expect=1 -ui \
-    -client=`docker-machine ip $DOCKER_MACHINE_NAME`\
-    -advertise=`docker-machine ip $DOCKER_MACHINE_NAME`
+    -client=0.0.0.0
 ```
 
 To register a service in Consul's web API we can use curl:
@@ -35,7 +35,7 @@ curl -vvv -XPUT \
 Then we can query Consul DNS API for the service using dig:
 
 ```bash
-dig @`docker-machine ip $DOCKER_MACHINE_NAME` -p 8600 graylog_server_1.service.consul SRV
+dig @`docker-machine ip $DOCKER_MACHINE_NAME` graylog_server_1.service.consul SRV
 ```
 
 Lets get some more details about graylog service using REST API:
@@ -47,11 +47,13 @@ curl `docker-machine ip $DOCKER_MACHINE_NAME`:8500/v1/catalog/service/graylog_se
 ### Start Registrator
 ```bash
 docker run -d \
-    --name=registrator \
-    --net=host \
+    --name registrator \
+    --hostname registrator \
+    --dns=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' consul` \
     --volume=/var/run/docker.sock:/tmp/docker.sock \
     gliderlabs/registrator:latest \
-      consul://`docker-machine ip $DOCKER_MACHINE_NAME`:8500
+    -internal \
+    consul://consul.service.consul:8500
 ```
 
 ### Start Consul Template
@@ -59,9 +61,15 @@ docker run -d \
 Copy haproxy.ctmpl to /tmp directory in docker-machine
 
 ```bash
-docker run --net host -it -v /tmp:/tmp \
+docker-machine scp haproxy.ctmpl development:/tmp
+```
+
+Run consul-template
+```bash
+docker run -it -v /tmp:/tmp \
+    --dns=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' consul` \
     camilocot/docker-image-consul-template \
-    -consul `docker-machine ip $DOCKER_MACHINE_NAME`:8500 \
+    -consul consul.service.consul:8500 \
     -template /tmp/haproxy.ctmpl:/tmp/haproxy.cfg \
     -log-level debug
 ```
@@ -69,22 +77,57 @@ docker run --net host -it -v /tmp:/tmp \
 ### Start haproxy
 ```bash
 docker run -d --name haproxy \
-   -v /tmp/consul.result:/usr/local/etc/haproxy/haproxy.cfg:ro \
-   haproxy:1.5
+    -v /tmp/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro \
+    haproxy:1.5
 ```
 
 ### Start elasticseach
 ```bash
-docker run --net host --name elasticsearch -d elasticsearch -Des.cluster.name="graylog"
+docker run -d \
+    --name elasticsearch \
+    --hostname elasticsearch \
+    --dns=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' consul` \
+    elasticsearch -Des.cluster.name="graylog"
 ```
 
 ### Start mongodb
 ```bash
-docker run --net host --name mongo -d mongo
+docker run -d \
+    --name mongo \
+    --hostname mongo \
+    --dns=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' consul` \
+     mongo:3
+```
+
+### Start 2 graylog instances
+Copy haproxy.ctmpl to /tmp directory in docker-machine
+
+```bash
+docker-machine scp graylog.conf development:/tmp
+```
+
+Start Graylog instances
+```bash
+docker run -d \
+     --hostname graylog1 \
+     --name graylog1 \
+     --link mongo:mongo --link elasticsearch:elasticsearch \
+     -v /tmp/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
+     graylog2/server
+
+docker run -d \
+     --hostname graylog2 \
+     --name graylog2 \
+     --link mongo:mongo --link elasticsearch:elasticsearch \
+     -v /tmp/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
+     graylog2/server
 ```
 
 ### @Todo
-Reload haproxy after restart
-Run consul as DNS provider for all container
-Run all graylog components (sharing ports ???)
+[ ] Reload haproxy after config change
+[x] Run consul as DNS provider for all container
+[x] Run all graylog components
+[x] Set rest api uri to haproxy
+[ ] Create docker compose file
+[ ] Escalate it using swarm
 

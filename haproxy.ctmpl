@@ -8,11 +8,11 @@ defaults
     timeout server {{or (key "service/haproxy/timeouts/server") "50000ms"}}
 
 listen http-in
-    bind *:9000{{range service "elasticsearch-9200"}}
+    bind *:9000{{range service "server-9000"}}
     server {{.Node}} {{.Address}}:{{.Port}}{{end}}
 
 listen restapi 0.0.0.0:12900
-    mode http{{range service "elasticsearch-9300"}}
+    mode http{{range service "server-12900"}}
     server {{.Node}} {{.Address}}:{{.Port}}{{end}}
 
 listen stats *:1936
