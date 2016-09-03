@@ -128,6 +128,7 @@ docker run -d \
 - [x] Run consul as DNS provider for all container
 - [x] Run all graylog components
 - [x] Set rest api uri to haproxy
+
 #### Next
 - [ ] Reload haproxy after config change
 - [ ] Create docker compose file
