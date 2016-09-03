@@ -123,11 +123,13 @@ docker run -d \
      graylog2/server
 ```
 
-### @Todo
-[ ] Reload haproxy after config change
-[x] Run consul as DNS provider for all container
-[x] Run all graylog components
-[x] Set rest api uri to haproxy
-[ ] Create docker compose file
-[ ] Escalate it using swarm
+### To-do
+#### Done
+- [x] Run consul as DNS provider for all container
+- [x] Run all graylog components
+- [x] Set rest api uri to haproxy
+#### Next
+- [ ] Reload haproxy after config change
+- [ ] Create docker compose file
+- [ ] Escalate it using swarm
 
