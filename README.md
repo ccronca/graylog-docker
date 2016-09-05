@@ -1,4 +1,4 @@
-## Starting local test environment
+## Starting manual local test environment
 
 ### Create Docker node
 
@@ -61,12 +61,12 @@ docker run -d \
 Copy haproxy.ctmpl to /tmp directory in docker-machine
 
 ```bash
-docker-machine scp haproxy.ctmpl development:/tmp
+docker-machine ssh development mkdir /tmp/haproxy/ && docker-machine scp haproxy.ctmpl development:/tmp/haproxy/haproxy.ctmpl
 ```
 
 Run consul-template
 ```bash
-docker run -it -v /tmp:/tmp \
+docker run -it -v /tmp/haproxy:/tmp \
     --dns=`docker inspect --format '{{ .NetworkSettings.IPAddress }}' consul` \
     camilocot/docker-image-consul-template \
     -consul consul.service.consul:8500 \
@@ -78,7 +78,7 @@ docker run -it -v /tmp:/tmp \
 ```bash
 docker run -d --name haproxy \
     -v /tmp/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro \
-    haproxy:1.5
+    haproxy:1.6
 ```
 
 ### Start elasticseach
@@ -100,10 +100,10 @@ docker run -d \
 ```
 
 ### Start 2 graylog instances
-Copy haproxy.ctmpl to /tmp directory in docker-machine
+Copy graylog.conf to /tmp directory in docker-machine
 
 ```bash
-docker-machine scp graylog.conf development:/tmp
+docker-machine ssh development mkdir /tmp/graylog && docker-machine scp graylog.conf development:/tmp/graylog
 ```
 
 Start Graylog instances
@@ -112,25 +112,32 @@ docker run -d \
      --hostname graylog1 \
      --name graylog1 \
      --link mongo:mongo --link elasticsearch:elasticsearch \
-     -v /tmp/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
+     -v /tmp/graylog/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
      graylog2/server
 
 docker run -d \
      --hostname graylog2 \
      --name graylog2 \
      --link mongo:mongo --link elasticsearch:elasticsearch \
-     -v /tmp/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
+     -v /tmp/graylog/graylog.conf:/usr/share/graylog/data/config/graylog.conf \
      graylog2/server
 ```
 
-### To-do
-#### Done
+## Starting test environment using composer
+
+```bash
+DOCKER_MACHINE_IP=`docker-machine ip $DOCKER_MACHINE_NAME` docker-compose up
+```
+
+## To-do
+
+### Done
 - [x] Run consul as DNS provider for all container
 - [x] Run all graylog components
 - [x] Set rest api uri to haproxy
+- [x] Create docker compose file
 
-#### Next
+### Next
 - [ ] Reload haproxy after config change
-- [ ] Create docker compose file
-- [ ] Escalate it using swarm
+- [ ] Escalate using swarm
 
