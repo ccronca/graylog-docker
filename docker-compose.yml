@@ -10,7 +10,9 @@ services:
   registrator:
     image: "gliderlabs/registrator:latest"
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock
+      - /var/run/docker.sock:/var/tmp/docker.sock
+    environment:
+      DOCKER_HOST: "unix:///var/tmp/docker.sock"
     command: "-internal consul://consul:8500"
     dns:
       - ${DOCKER_MACHINE_IP}
@@ -20,10 +22,13 @@ services:
     depends_on:
       - consul
   consul-template:
-    image: "camilocot/docker-image-consul-template"
-    command: "-consul consul:8500 -template /tmp/haproxy.ctmpl:/tmp/haproxy.cfg -log-level debug"
+    image: "camilocot/docker-image-consul-template:latest"
+    environment:
+      CONTAINER: "graylogdocker_haproxy_1"
+    command: "-consul consul:8500 -log-level debug -template /tmp/haproxy.ctmpl:/tmp/haproxy.cfg:/send-container-signal.sh"
     volumes:
       - /tmp/haproxy:/tmp
+      - /var/run/docker.sock:/var/run/docker.sock
     dns:
       - ${DOCKER_MACHINE_IP}
     dns_search:
@@ -32,9 +37,9 @@ services:
     depends_on:
       - consul
   haproxy:
-    image: haproxy:1.5
+    image: camilocot/haproxy-wait-for-file
     volumes:
-      - /tmp/haproxy:/usr/local/etc/haproxy
+      - /tmp/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - consul-template
       - graylog-server
@@ -42,6 +47,7 @@ services:
       - "9000:9000"
       - "12900:12900"
       - "1936:1936"
+    entrypoint: /wait-for-file.sh /usr/local/etc/haproxy/haproxy.cfg haproxy -f /usr/local/etc/haproxy/haproxy.cfg
   mongo:
     image: "mongo:3"
     volumes:
